@@ -2,14 +2,13 @@ import express from "express";
 import cors from "cors";
 import { google } from "googleapis";
 import dotenv from "dotenv";
-import fetch from "node-fetch";
-
 
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ✅ Decode base64 key from Render env
 const base64Key = process.env.DIALOGFLOW_SERVICE_ACCOUNT_BASE64;
 
 if (!base64Key) {
@@ -18,10 +17,7 @@ if (!base64Key) {
 }
 
 const decoded = JSON.parse(Buffer.from(base64Key, "base64").toString("utf8"));
-
-const projectId = decoded.project_id;
-const clientEmail = decoded.client_email;
-const privateKey = decoded.private_key;
+const { project_id: projectId, client_email: clientEmail, private_key: privateKey } = decoded;
 
 async function getAccessToken() {
   const jwtClient = new google.auth.JWT(
@@ -30,7 +26,6 @@ async function getAccessToken() {
     privateKey,
     ["https://www.googleapis.com/auth/cloud-platform"]
   );
-
   await jwtClient.authorize();
   return jwtClient.credentials.access_token;
 }
@@ -64,6 +59,7 @@ app.post("/detect-intent", async (req, res) => {
     );
 
     const data = await dialogflowRes.json();
+    console.log("🎯 Dialogflow response:", data);
     res.json(data.queryResult);
   } catch (err) {
     console.error("🔥 Error in /detect-intent:", err.message);
