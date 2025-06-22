@@ -60,7 +60,7 @@ app.post("/detect-intent", async (req, res) => {
     const data = await dialogflowRes.json();
     res.json(data.queryResult);
   } catch (err) {
-    console.error("🔥 Error in /detect-intent:", err.message);
+    console.error("🔥 Error in /detect-intent:", err);
     res.status(500).json({ error: "Dialogflow proxy failed" });
   }
 });
