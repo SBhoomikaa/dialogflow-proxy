@@ -1,20 +1,35 @@
 import express from "express";
 import cors from "cors";
-import { google } from "googleapis";
 import dotenv from "dotenv";
+import { google } from "googleapis";
 
 dotenv.config();
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔐 Fetch from split environment variables
+// Load environment variables
 const projectId = process.env.DIALOGFLOW_PROJECT_ID;
 const clientEmail = process.env.DIALOGFLOW_CLIENT_EMAIL;
-const privateKey = process.env.DIALOGFLOW_PRIVATE_KEY?.replace(/\\n/g, '\n');
+const privateKeyRaw = process.env.DIALOGFLOW_PRIVATE_KEY;
+
+// 🐛 Debug logs
+console.log("📌 ENV DEBUG:");
+console.log("▶️  projectId:", projectId);
+console.log("▶️  clientEmail:", clientEmail);
+console.log("▶️  privateKeyRaw exists:", !!privateKeyRaw);
+console.log("▶️  privateKeyRaw length:", privateKeyRaw?.length);
+
+// Replace \\n with actual line breaks
+const privateKey = privateKeyRaw?.replace(/\\n/g, '\n');
+
+// 🐛 Confirm private key formatting
+console.log("▶️  privateKey starts with:", privateKey?.slice(0, 30));
+console.log("▶️  privateKey ends with:", privateKey?.slice(-30));
 
 if (!projectId || !clientEmail || !privateKey) {
-  console.error("❌ Missing one or more required env variables (PROJECT_ID, CLIENT_EMAIL, PRIVATE_KEY)");
+  console.error("❌ Missing one or more required environment variables.");
   process.exit(1);
 }
 
@@ -25,6 +40,7 @@ async function getAccessToken() {
     privateKey,
     ["https://www.googleapis.com/auth/cloud-platform"]
   );
+
   await jwtClient.authorize();
   return jwtClient.credentials.access_token;
 }
@@ -32,7 +48,9 @@ async function getAccessToken() {
 app.post("/detect-intent", async (req, res) => {
   const { text } = req.body;
 
-  if (!text) return res.status(400).json({ error: "Missing text input" });
+  if (!text) {
+    return res.status(400).json({ error: "Missing text input" });
+  }
 
   try {
     const token = await getAccessToken();
