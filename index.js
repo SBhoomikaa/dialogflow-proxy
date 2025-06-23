@@ -8,15 +8,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const base64Key = process.env.DIALOGFLOW_SERVICE_ACCOUNT_BASE64;
+// 🔐 Fetch from split environment variables
+const projectId = process.env.DIALOGFLOW_PROJECT_ID;
+const clientEmail = process.env.DIALOGFLOW_CLIENT_EMAIL;
+const privateKey = process.env.DIALOGFLOW_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-if (!base64Key) {
-  console.error("❌ Missing base64 key in env");
+if (!projectId || !clientEmail || !privateKey) {
+  console.error("❌ Missing one or more required env variables (PROJECT_ID, CLIENT_EMAIL, PRIVATE_KEY)");
   process.exit(1);
 }
-
-const decoded = JSON.parse(Buffer.from(base64Key, "base64").toString("utf8"));
-const { project_id: projectId, client_email: clientEmail, private_key: privateKey } = decoded;
 
 async function getAccessToken() {
   const jwtClient = new google.auth.JWT(
