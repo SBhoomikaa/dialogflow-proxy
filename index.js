@@ -1,37 +1,33 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { google } from "googleapis";
+import dotenv from "dotenv";
 
 dotenv.config();
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Load environment variables
-const projectId = process.env.DIALOGFLOW_PROJECT_ID;
-const clientEmail = process.env.DIALOGFLOW_CLIENT_EMAIL;
-const privateKeyRaw = process.env.DIALOGFLOW_PRIVATE_KEY;
+const base64Key = process.env.DIALOGFLOW_KEY_BASE64;
 
-// 🐛 Debug logs
+if (!base64Key) {
+  console.error("❌ Missing DIALOGFLOW_KEY_BASE64 env variable");
+  process.exit(1);
+}
+
+const serviceAccount = JSON.parse(
+  Buffer.from(base64Key, "base64").toString("utf8")
+);
+
+const projectId = serviceAccount.project_id;
+const clientEmail = serviceAccount.client_email;
+const privateKey = serviceAccount.private_key;
+
 console.log("📌 ENV DEBUG:");
 console.log("▶️  projectId:", projectId);
 console.log("▶️  clientEmail:", clientEmail);
-console.log("▶️  privateKeyRaw exists:", !!privateKeyRaw);
-console.log("▶️  privateKeyRaw length:", privateKeyRaw?.length);
-
-// Replace \\n with actual line breaks
-const privateKey = privateKeyRaw?.replace(/\\n/g, '\n');
-
-// 🐛 Confirm private key formatting
-console.log("▶️  privateKey starts with:", privateKey?.slice(0, 30));
-console.log("▶️  privateKey ends with:", privateKey?.slice(-30));
-
-if (!projectId || !clientEmail || !privateKey) {
-  console.error("❌ Missing one or more required environment variables.");
-  process.exit(1);
-}
+console.log("▶️  privateKey starts with:", privateKey.slice(0, 30));
+console.log("▶️  privateKey ends with:", privateKey.slice(-30));
 
 async function getAccessToken() {
   const jwtClient = new google.auth.JWT(
@@ -40,23 +36,19 @@ async function getAccessToken() {
     privateKey,
     ["https://www.googleapis.com/auth/cloud-platform"]
   );
-
   await jwtClient.authorize();
   return jwtClient.credentials.access_token;
 }
 
 app.post("/detect-intent", async (req, res) => {
   const { text } = req.body;
-
-  if (!text) {
-    return res.status(400).json({ error: "Missing text input" });
-  }
+  if (!text) return res.status(400).json({ error: "Missing text input" });
 
   try {
     const token = await getAccessToken();
     const sessionId = Math.random().toString(36).substring(7);
 
-    const dialogflowRes = await fetch(
+    const response = await fetch(
       `https://dialogflow.googleapis.com/v2/projects/${projectId}/agent/sessions/${sessionId}:detectIntent`,
       {
         method: "POST",
@@ -75,7 +67,7 @@ app.post("/detect-intent", async (req, res) => {
       }
     );
 
-    const data = await dialogflowRes.json();
+    const data = await response.json();
     res.json(data.queryResult);
   } catch (err) {
     console.error("🔥 Error in /detect-intent:", err);
