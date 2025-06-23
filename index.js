@@ -80,7 +80,7 @@ app.post("/detect-intent", async (req, res) => {
           queryInput: {
             text: {
               text,
-              languageCode: "en",
+              languageCode: "en-US",
             },
           },
         }),
@@ -102,3 +102,8 @@ app.post("/detect-intent", async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Proxy running on port ${PORT}`));
+
+// At the very end of index.js
+app.use((req, res) => {
+  res.status(404).send("Not found");
+});
