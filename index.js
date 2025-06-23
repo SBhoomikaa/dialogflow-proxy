@@ -6,7 +6,18 @@ import { GoogleAuth } from "google-auth-library";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// ✅ Allow frontend origin
+app.use(cors({
+  origin: "https://home-automation-dashboard-wzl5.onrender.com",
+  methods: ["POST", "GET", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+  credentials: false,
+}));
+
+// ✅ Handle preflight request explicitly
+app.options("/detect-intent", cors());
+
 app.use(express.json());
 
 // 🔐 Load and decode base64-encoded service account JSON
@@ -48,6 +59,7 @@ async function getAccessToken() {
   return tokenResponse.token;
 }
 
+// 🎯 Endpoint to send text to Dialogflow
 app.post("/detect-intent", async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: "Missing text input" });
@@ -77,7 +89,11 @@ app.post("/detect-intent", async (req, res) => {
 
     const data = await response.json();
 
-    res.json(data.queryResult);
+    if (data.queryResult) {
+      res.json(data.queryResult);
+    } else {
+      res.status(500).json({ error: "Dialogflow returned no queryResult" });
+    }
   } catch (err) {
     console.error("🔥 Error in /detect-intent:", err);
     res.status(500).json({ error: "Dialogflow proxy failed" });
