@@ -1,13 +1,15 @@
 import express from "express";
 import cors from "cors";
-import { google } from "googleapis";
 import dotenv from "dotenv";
+import { GoogleAuth } from "google-auth-library";
 
 dotenv.config();
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 🔐 Load and decode base64-encoded service account JSON
 const base64Key = process.env.DIALOGFLOW_KEY_BASE64;
 
 if (!base64Key) {
@@ -15,29 +17,35 @@ if (!base64Key) {
   process.exit(1);
 }
 
-const serviceAccount = JSON.parse(
-  Buffer.from(base64Key, "base64").toString("utf8")
-);
+let serviceAccount;
+
+try {
+  const jsonString = Buffer.from(base64Key, "base64").toString("utf8");
+  serviceAccount = JSON.parse(jsonString);
+} catch (err) {
+  console.error("❌ Failed to decode or parse service account JSON:", err);
+  process.exit(1);
+}
 
 const projectId = serviceAccount.project_id;
-const clientEmail = serviceAccount.client_email;
-const privateKey = serviceAccount.private_key;
 
 console.log("📌 ENV DEBUG:");
 console.log("▶️  projectId:", projectId);
-console.log("▶️  clientEmail:", clientEmail);
-console.log("▶️  privateKey starts with:", privateKey.slice(0, 30));
-console.log("▶️  privateKey ends with:", privateKey.slice(-30));
+console.log("▶️  clientEmail:", serviceAccount.client_email);
+console.log("▶️  privateKey starts with:", serviceAccount.private_key.slice(0, 30));
+console.log("▶️  privateKey ends with:", serviceAccount.private_key.slice(-30));
+console.log("▶️  privateKey length:", serviceAccount.private_key.length);
+
+// ✅ Use GoogleAuth with credentials directly
+const auth = new GoogleAuth({
+  credentials: serviceAccount,
+  scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+});
 
 async function getAccessToken() {
-  const jwtClient = new google.auth.JWT(
-    clientEmail,
-    null,
-    privateKey,
-    ["https://www.googleapis.com/auth/cloud-platform"]
-  );
-  await jwtClient.authorize();
-  return jwtClient.credentials.access_token;
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  return tokenResponse.token;
 }
 
 app.post("/detect-intent", async (req, res) => {
@@ -68,6 +76,7 @@ app.post("/detect-intent", async (req, res) => {
     );
 
     const data = await response.json();
+
     res.json(data.queryResult);
   } catch (err) {
     console.error("🔥 Error in /detect-intent:", err);
