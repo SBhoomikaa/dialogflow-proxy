@@ -1,3 +1,5 @@
 node_modules
 .env
 dialogflow-key.json 
+encoded_key.txt
+encoded.txt
