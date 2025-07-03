@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: "https://home-automation-dashboard-wzl5.onrender.com",
+  origin: "https://home-automation-dashboard-rmbd.onrender.com",
   methods: ["POST", "GET", "OPTIONS"],
   allowedHeaders: ["Content-Type"],
   credentials: false,
